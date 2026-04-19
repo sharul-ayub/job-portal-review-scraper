@@ -1,0 +1,4 @@
+﻿company_name,review_url,country,active,notes
+OCBC,https://malaysia.indeed.com/cmp/Ocbc-3/reviews,MY,1,
+Public Bank,https://malaysia.indeed.com/cmp/Public-Bank-Berhad/reviews,MY,1,
+RHB Bank Berhad,https://malaysia.indeed.com/cmp/Rhb-Bank-Berhad/reviews,MY,0,Set active=1 when ready

@@ -47,8 +47,8 @@ def _excel_safe(value):
 
 def merge_page_json_to_csv() -> None:
     pages_dir = Path("data/raw/pages")
-    merged_json_path = Path("data/processed/reviews_merged Cimb-Group.json")
-    merged_csv_path = Path("data/processed/reviews_merged Cimb-Group.csv")
+    merged_json_path = Path("data/processed/reviews_merged Ocbc.json")
+    merged_csv_path = Path("data/processed/reviews_merged Ocbc.csv")
 
     if not pages_dir.exists():
         raise FileNotFoundError(f"Pages directory not found: {pages_dir.resolve()}")

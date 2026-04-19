@@ -1,11 +1,14 @@
 ﻿from pathlib import Path
 
 # Timing
-PAGE_STABILIZE_DELAY_SECONDS = 30
+# Random idle delay between navigations/interactions (inclusive range in seconds).
+IDLE_DELAY_RANGE_SECONDS = (5.0, 12.0)
+# Additional page settle delay before HTML snapshot in crawler run config.
+PAGE_SETTLE_DELAY_SECONDS = 4.0
 
 # Crawl target
-BASE_URL = "https://malaysia.indeed.com/cmp/Cimb-Group/reviews"
-TOTAL_REVIEWS = 338
+BASE_URL = "https://malaysia.indeed.com/cmp/Ocbc-3/reviews"
+TOTAL_REVIEWS = 125
 PAGE_SIZE = 20
 
 # Profile

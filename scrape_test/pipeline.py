@@ -1,15 +1,17 @@
 ﻿import asyncio
 import json
 import math
+import random
 
 from .checkpoint_store import load_checkpoint, save_checkpoint
 from .config import (
     BASE_URL,
     CHECKPOINT_PATH,
     DEBUG_FOLDER,
+    IDLE_DELAY_RANGE_SECONDS,
     OUTPUT_FOLDER,
+    PAGE_SETTLE_DELAY_SECONDS,
     PAGE_SIZE,
-    PAGE_STABILIZE_DELAY_SECONDS,
     PROFILE_PATH,
     TOTAL_REVIEWS,
     WORKER_PROFILES_ROOT,
@@ -55,7 +57,7 @@ async def scrape_reviews() -> None:
             f"Profile not found: {PROFILE_PATH}. Run setup_profile.py first."
         )
 
-    crawl_config = build_crawl_config()
+    crawl_config = build_crawl_config(delay_before_return_html=PAGE_SETTLE_DELAY_SECONDS)
 
     success_pages = 0
     failed_pages = 0
@@ -95,6 +97,10 @@ async def scrape_reviews() -> None:
     sem = asyncio.Semaphore(MAX_PARALLEL)
     checkpoint_lock = asyncio.Lock()
     fallback_queue = []
+
+    async def idle_pause() -> None:
+        low, high = IDLE_DELAY_RANGE_SECONDS
+        await asyncio.sleep(random.uniform(low, high))
 
     async def mark_success(item: dict, rows: list[dict], attempts: int, mode: str) -> None:
         nonlocal success_pages
@@ -143,7 +149,7 @@ async def scrape_reviews() -> None:
             except Exception as exc:
                 result = None
                 last_error = f"primary crawler exception: {exc}"
-            await asyncio.sleep(PAGE_STABILIZE_DELAY_SECONDS)
+            await idle_pause()
 
         if result is not None and result.success:
             html = getattr(result, "html", "") or ""
@@ -206,7 +212,7 @@ async def scrape_reviews() -> None:
             except Exception as exc:
                 result = None
                 last_error = f"fallback crawler exception: {exc}"
-            await asyncio.sleep(PAGE_STABILIZE_DELAY_SECONDS)
+            await idle_pause()
 
         if result is not None and result.success:
             html = getattr(result, "html", "") or ""
