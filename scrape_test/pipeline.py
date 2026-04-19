@@ -1,21 +1,12 @@
-﻿import asyncio
+import asyncio
 import json
 import math
 import random
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Callable
 
 from .checkpoint_store import load_checkpoint, save_checkpoint
-from .config import (
-    BASE_URL,
-    CHECKPOINT_PATH,
-    DEBUG_FOLDER,
-    IDLE_DELAY_RANGE_SECONDS,
-    OUTPUT_FOLDER,
-    PAGE_SETTLE_DELAY_SECONDS,
-    PAGE_SIZE,
-    PROFILE_PATH,
-    TOTAL_REVIEWS,
-    WORKER_PROFILES_ROOT,
-)
 from .crawler import (
     build_crawl_config,
     build_fallback_browser_config,
@@ -25,39 +16,53 @@ from .crawler import (
     ensure_worker_profile,
 )
 from .helpers import build_page_url
-from .parser_indeed import extract_reviews_from_html
-
-MAX_PARALLEL = 3
 
 
-async def scrape_reviews() -> None:
-    total_pages = math.ceil(TOTAL_REVIEWS / PAGE_SIZE)
+@dataclass(frozen=True)
+class EngineConfig:
+    base_url: str
+    total_reviews: int
+    page_size: int
+    profile_path: Path
+    worker_profiles_root: Path
+    output_folder: Path
+    debug_folder: Path
+    checkpoint_path: Path
+    extract_rows: Callable[[str], list[dict]]
+    max_parallel: int = 3
+    idle_delay_range_seconds: tuple[float, float] = (5.0, 12.0)
+    page_settle_delay_seconds: float = 4.0
+    output_file_pattern: str = "reviews_page_{page_idx}.json"
 
-    OUTPUT_FOLDER.mkdir(parents=True, exist_ok=True)
-    DEBUG_FOLDER.mkdir(parents=True, exist_ok=True)
-    WORKER_PROFILES_ROOT.mkdir(parents=True, exist_ok=True)
+
+async def run_engine(config: EngineConfig) -> None:
+    total_pages = math.ceil(config.total_reviews / config.page_size)
+
+    config.output_folder.mkdir(parents=True, exist_ok=True)
+    config.debug_folder.mkdir(parents=True, exist_ok=True)
+    config.worker_profiles_root.mkdir(parents=True, exist_ok=True)
 
     checkpoint = load_checkpoint(
-        CHECKPOINT_PATH,
-        base_url=BASE_URL,
+        config.checkpoint_path,
+        base_url=config.base_url,
         total_pages=total_pages,
-        page_size=PAGE_SIZE,
+        page_size=config.page_size,
     )
-    if checkpoint.get("base_url") != BASE_URL:
+    if checkpoint.get("base_url") != config.base_url:
         checkpoint = {
-            "base_url": BASE_URL,
+            "base_url": config.base_url,
             "total_pages": total_pages,
-            "page_size": PAGE_SIZE,
+            "page_size": config.page_size,
             "pages": {},
         }
-    save_checkpoint(CHECKPOINT_PATH, checkpoint)
+    save_checkpoint(config.checkpoint_path, checkpoint)
 
-    if not PROFILE_PATH.exists():
+    if not config.profile_path.exists():
         raise FileNotFoundError(
-            f"Profile not found: {PROFILE_PATH}. Run setup_profile.py first."
+            f"Profile not found: {config.profile_path}. Run setup_profile.py first."
         )
 
-    crawl_config = build_crawl_config(delay_before_return_html=PAGE_SETTLE_DELAY_SECONDS)
+    crawl_config = build_crawl_config(delay_before_return_html=config.page_settle_delay_seconds)
 
     success_pages = 0
     failed_pages = 0
@@ -67,8 +72,8 @@ async def scrape_reviews() -> None:
     for page_num in range(total_pages):
         page_idx = page_num + 1
         page_key = str(page_idx)
-        start = page_num * PAGE_SIZE
-        url = build_page_url(BASE_URL, start)
+        start = page_num * config.page_size
+        url = build_page_url(config.base_url, start)
         prev = checkpoint.get("pages", {}).get(page_key, {})
         if prev.get("status") == "success":
             skipped_pages += 1
@@ -89,17 +94,17 @@ async def scrape_reviews() -> None:
             f"Completed. Success pages: {success_pages}, "
             f"Failed pages: {failed_pages}, Skipped pages: {skipped_pages}"
         )
-        print(f"Checkpoint updated: {CHECKPOINT_PATH}")
+        print(f"Checkpoint updated: {config.checkpoint_path}")
         return
 
     print(f"Pending pages for primary parallel pass: {len(pending)}")
 
-    sem = asyncio.Semaphore(MAX_PARALLEL)
+    sem = asyncio.Semaphore(config.max_parallel)
     checkpoint_lock = asyncio.Lock()
     fallback_queue = []
 
     async def idle_pause() -> None:
-        low, high = IDLE_DELAY_RANGE_SECONDS
+        low, high = config.idle_delay_range_seconds
         await asyncio.sleep(random.uniform(low, high))
 
     async def mark_success(item: dict, rows: list[dict], attempts: int, mode: str) -> None:
@@ -114,7 +119,8 @@ async def scrape_reviews() -> None:
             row["start_offset"] = start
             row["source_url"] = url
 
-        output_path = OUTPUT_FOLDER / f"reviews_page_{page_idx}.json"
+        output_filename = config.output_file_pattern.format(page_idx=page_idx)
+        output_path = config.output_folder / output_filename
         output_path.write_text(json.dumps(rows, indent=2, ensure_ascii=False), encoding="utf-8")
 
         async with checkpoint_lock:
@@ -129,7 +135,7 @@ async def scrape_reviews() -> None:
                 "mode": mode,
                 "last_error": "",
             }
-            save_checkpoint(CHECKPOINT_PATH, checkpoint)
+            save_checkpoint(config.checkpoint_path, checkpoint)
         print(f"SUCCESS page {page_idx}: saved {len(rows)} reviews ({mode})")
 
     async def primary_worker(item: dict) -> None:
@@ -138,12 +144,12 @@ async def scrape_reviews() -> None:
         last_error = ""
         html = ""
 
-        worker_profile = WORKER_PROFILES_ROOT / f"primary_page_{page_idx}"
+        worker_profile = config.worker_profiles_root / f"primary_page_{page_idx}"
 
         async with sem:
             print(f"Primary scraping page {page_idx}: {item['url']}")
             try:
-                ensure_worker_profile(PROFILE_PATH, worker_profile)
+                ensure_worker_profile(config.profile_path, worker_profile)
                 primary_browser_config = build_primary_browser_config(str(worker_profile.resolve()))
                 result = await crawl_once(item["url"], primary_browser_config, crawl_config)
             except Exception as exc:
@@ -155,7 +161,7 @@ async def scrape_reviews() -> None:
             html = getattr(result, "html", "") or ""
             if html:
                 try:
-                    rows = extract_reviews_from_html(html)
+                    rows = config.extract_rows(html)
                     await mark_success(item, rows, attempts, "primary_login_parallel")
                     return
                 except Exception as exc:
@@ -174,7 +180,7 @@ async def scrape_reviews() -> None:
                     "html": html,
                 }
             )
-        print(f"PRIMARY FAILED page {page_idx}: {last_error}")
+        print(f"PRIMARY FAILED page {page_idx}: {last_error or 'unknown error'}")
 
     await asyncio.gather(*(primary_worker(item) for item in pending))
 
@@ -184,7 +190,7 @@ async def scrape_reviews() -> None:
             f"Completed. Success pages: {success_pages}, "
             f"Failed pages: {failed_pages}, Skipped pages: {skipped_pages}"
         )
-        print(f"Checkpoint updated: {CHECKPOINT_PATH}")
+        print(f"Checkpoint updated: {config.checkpoint_path}")
         return
 
     print(f"Pending pages for fallback parallel pass: {len(fallback_queue)}")
@@ -201,12 +207,12 @@ async def scrape_reviews() -> None:
         last_error = payload.get("last_error", "")
         html = payload.get("html", "")
 
-        worker_profile = WORKER_PROFILES_ROOT / f"fallback_page_{page_idx}"
+        worker_profile = config.worker_profiles_root / f"fallback_page_{page_idx}"
 
         async with sem:
             print(f"Fallback scraping page {page_idx}: {url}")
             try:
-                ensure_worker_profile(PROFILE_PATH, worker_profile)
+                ensure_worker_profile(config.profile_path, worker_profile)
                 fallback_browser_config = build_fallback_browser_config(str(worker_profile.resolve()))
                 result = await crawl_once_undetected(url, fallback_browser_config, crawl_config)
             except Exception as exc:
@@ -218,7 +224,7 @@ async def scrape_reviews() -> None:
             html = getattr(result, "html", "") or ""
             if html:
                 try:
-                    rows = extract_reviews_from_html(html)
+                    rows = config.extract_rows(html)
                     await mark_success(item, rows, attempts, "fallback_undetected_parallel")
                     return
                 except Exception as exc:
@@ -228,7 +234,7 @@ async def scrape_reviews() -> None:
         elif result is not None:
             last_error = f"fallback crawl failed: {result.error_message}"
 
-        failed_html_path = DEBUG_FOLDER / f"failed_page_{page_idx}.html"
+        failed_html_path = config.debug_folder / f"failed_page_{page_idx}.html"
         if html:
             failed_html_path.write_text(html, encoding="utf-8")
 
@@ -244,7 +250,7 @@ async def scrape_reviews() -> None:
                 "mode": "fallback_undetected_parallel",
                 "last_error": last_error or "unknown error",
             }
-            save_checkpoint(CHECKPOINT_PATH, checkpoint)
+            save_checkpoint(config.checkpoint_path, checkpoint)
         print(f"FAILED page {page_idx}: {last_error or 'unknown error'}")
 
     await asyncio.gather(*(fallback_worker(payload) for payload in fallback_queue))
@@ -253,4 +259,4 @@ async def scrape_reviews() -> None:
         f"Completed. Success pages: {success_pages}, "
         f"Failed pages: {failed_pages}, Skipped pages: {skipped_pages}"
     )
-    print(f"Checkpoint updated: {CHECKPOINT_PATH}")
+    print(f"Checkpoint updated: {config.checkpoint_path}")

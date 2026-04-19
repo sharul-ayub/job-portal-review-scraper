@@ -1,24 +1,24 @@
 {
-  "base_url": "https://malaysia.indeed.com/cmp/Ocbc-3/reviews",
+  "base_url": "https://malaysia.indeed.com/cmp/United-Overseas-Bank/reviews",
   "total_pages": 7,
   "page_size": 20,
   "pages": {
-    "2": {
-      "status": "success",
-      "attempts": 2,
-      "start_offset": 20,
-      "source_url": "https://malaysia.indeed.com/cmp/Ocbc-3/reviews?start=20",
-      "output_file": "data\\raw\\pages\\reviews_page_2.json",
-      "review_count": 20,
-      "mode": "fallback_undetected_parallel",
-      "last_error": ""
-    },
     "3": {
       "status": "success",
       "attempts": 2,
       "start_offset": 40,
-      "source_url": "https://malaysia.indeed.com/cmp/Ocbc-3/reviews?start=40",
+      "source_url": "https://malaysia.indeed.com/cmp/United-Overseas-Bank/reviews?start=40",
       "output_file": "data\\raw\\pages\\reviews_page_3.json",
+      "review_count": 20,
+      "mode": "fallback_undetected_parallel",
+      "last_error": ""
+    },
+    "2": {
+      "status": "success",
+      "attempts": 2,
+      "start_offset": 20,
+      "source_url": "https://malaysia.indeed.com/cmp/United-Overseas-Bank/reviews?start=20",
+      "output_file": "data\\raw\\pages\\reviews_page_2.json",
       "review_count": 20,
       "mode": "fallback_undetected_parallel",
       "last_error": ""
@@ -27,18 +27,8 @@
       "status": "success",
       "attempts": 2,
       "start_offset": 0,
-      "source_url": "https://malaysia.indeed.com/cmp/Ocbc-3/reviews",
+      "source_url": "https://malaysia.indeed.com/cmp/United-Overseas-Bank/reviews",
       "output_file": "data\\raw\\pages\\reviews_page_1.json",
-      "review_count": 20,
-      "mode": "fallback_undetected_parallel",
-      "last_error": ""
-    },
-    "4": {
-      "status": "success",
-      "attempts": 2,
-      "start_offset": 60,
-      "source_url": "https://malaysia.indeed.com/cmp/Ocbc-3/reviews?start=60",
-      "output_file": "data\\raw\\pages\\reviews_page_4.json",
       "review_count": 20,
       "mode": "fallback_undetected_parallel",
       "last_error": ""
@@ -47,7 +37,7 @@
       "status": "success",
       "attempts": 2,
       "start_offset": 100,
-      "source_url": "https://malaysia.indeed.com/cmp/Ocbc-3/reviews?start=100",
+      "source_url": "https://malaysia.indeed.com/cmp/United-Overseas-Bank/reviews?start=100",
       "output_file": "data\\raw\\pages\\reviews_page_6.json",
       "review_count": 20,
       "mode": "fallback_undetected_parallel",
@@ -57,8 +47,18 @@
       "status": "success",
       "attempts": 2,
       "start_offset": 80,
-      "source_url": "https://malaysia.indeed.com/cmp/Ocbc-3/reviews?start=80",
+      "source_url": "https://malaysia.indeed.com/cmp/United-Overseas-Bank/reviews?start=80",
       "output_file": "data\\raw\\pages\\reviews_page_5.json",
+      "review_count": 20,
+      "mode": "fallback_undetected_parallel",
+      "last_error": ""
+    },
+    "4": {
+      "status": "success",
+      "attempts": 2,
+      "start_offset": 60,
+      "source_url": "https://malaysia.indeed.com/cmp/United-Overseas-Bank/reviews?start=60",
+      "output_file": "data\\raw\\pages\\reviews_page_4.json",
       "review_count": 20,
       "mode": "fallback_undetected_parallel",
       "last_error": ""
@@ -67,9 +67,9 @@
       "status": "success",
       "attempts": 2,
       "start_offset": 120,
-      "source_url": "https://malaysia.indeed.com/cmp/Ocbc-3/reviews?start=120",
+      "source_url": "https://malaysia.indeed.com/cmp/United-Overseas-Bank/reviews?start=120",
       "output_file": "data\\raw\\pages\\reviews_page_7.json",
-      "review_count": 5,
+      "review_count": 4,
       "mode": "fallback_undetected_parallel",
       "last_error": ""
     }

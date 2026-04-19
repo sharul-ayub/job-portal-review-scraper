@@ -4,6 +4,29 @@ import re
 from .helpers import clean_text, employee_flag, get_nested
 
 
+def extract_review_count_from_html(html: str) -> int:
+    # Best source for this project: <h2 data-testid="review-count">125 reviews</h2>
+    m = re.search(
+        r"<h2[^>]*data-testid=[\"']review-count[\"'][^>]*>\s*([\d,]+)\s+reviews\s*</h2>",
+        html,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    if m:
+        return int(m.group(1).replace(",", ""))
+
+    # Fallbacks if the h2 selector changes.
+    for pattern in (
+        r"<title[^>]*>.*?([\d,]+)\s+Reviews\b.*?</title>",
+        r'<meta[^>]+name=["\']description["\'][^>]+content=["\'][^"\']*?([\d,]+)\s+reviews\b',
+        r"([\d,]+)\s+reviews\b",
+    ):
+        m = re.search(pattern, html, flags=re.IGNORECASE | re.DOTALL)
+        if m:
+            return int(m.group(1).replace(",", ""))
+
+    raise RuntimeError("Could not extract total review count from HTML.")
+
+
 def extract_reviews_from_html(html: str) -> list[dict]:
     script_match = re.search(
         r'<script[^>]*id=["\']comp-initialData["\'][^>]*>(.*?)</script>',
